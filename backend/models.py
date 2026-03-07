@@ -1,13 +1,9 @@
-import datetime
+# models.py
+from datetime import datetime, timezone
 from sqlalchemy import Column, DateTime, Integer, String, Text, ForeignKey
 from backend.database import Base
 
-
-
-
-
 # PROJECTS (completed + progress)
-
 class Project(Base):
     __tablename__ = "projects"
 
@@ -18,9 +14,7 @@ class Project(Base):
     section = Column(String)   # completed or progress
     image_path = Column(String)
 
-
 # BEFORE & AFTER
-
 class BeforeAfter(Base):
     __tablename__ = "before_after"
 
@@ -30,7 +24,6 @@ class BeforeAfter(Base):
     description = Column(Text)
     location = Column(String)
 
-
 # COMMENTS / REVIEWS
 class Comment(Base):
     __tablename__ = "comments"
@@ -38,4 +31,4 @@ class Comment(Base):
     name = Column(String, nullable=False)
     email = Column(String, nullable=False)
     comment = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
