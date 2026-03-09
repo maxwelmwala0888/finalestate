@@ -2455,6 +2455,8 @@ With nearly three decades of industry experience, the business has successfully 
     </div>
 
     <script>
+        // API Configuration
+       const API_BASE_URL = 'https://finalestate-1.onrender.com';
         // Application Data Storage - EMPTY INITIAL STATE (your backend will populate)
         const appData = {
             currentUser: null,
@@ -2607,23 +2609,25 @@ With nearly three decades of industry experience, the business has successfully 
             }
         }
 
-        async function loadProjectsFromBackend() {
-            try {
-                const completedRes = await fetch('/projects/completed');
-                if (completedRes.ok) {
-                    const completedData = await completedRes.json();
-                    appData.projects.completed = completedData;
-                }
-                const progressRes = await fetch('/projects/progress');
-                if (progressRes.ok) {
-                    const progressData = await progressRes.json();
-                    appData.projects.progress = progressData;
-                }
-                loadDashboardContent();
-            } catch (error) {
-                console.error('Error loading projects:', error);
-            }
+      async function loadProjectsFromBackend() {
+    try {
+        const API_URL = 'https://finalestate-1.onrender.com';
+        
+        const completedRes = await fetch(`${API_URL}/projects/completed`);
+        if (completedRes.ok) {
+            const completedData = await completedRes.json();
+            appData.projects.completed = completedData;
         }
+        const progressRes = await fetch(`${API_URL}/projects/progress`);
+        if (progressRes.ok) {
+            const progressData = await progressRes.json();
+            appData.projects.progress = progressData;
+        }
+        loadDashboardContent();
+    } catch (error) {
+        console.error('Error loading projects:', error);
+    }
+}
 
         function initDashboard() {
             if (submitCommentBtn) submitCommentBtn.addEventListener('click', submitComment);
@@ -2763,26 +2767,63 @@ With nearly three decades of industry experience, the business has successfully 
 
         function isValidEmail(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
 
-        function submitComment() {
-            if (!appData.currentUser) { loginModal.classList.add('active'); return; }
-            const commentText = userCommentInput.value.trim();
-            if (!commentText) { alert('Please enter a comment.'); userCommentInput.focus(); return; }
-            if (commentText.length < 10) { alert('Please write a more detailed comment (at least 10 characters).'); userCommentInput.focus(); return; }
+      async function submitComment() {
+    if (!appData.currentUser) { 
+        loginModal.classList.add('active'); 
+        return; 
+    }
+    
+    const commentText = userCommentInput.value.trim();
+    if (!commentText) { 
+        alert('Please enter a comment.'); 
+        userCommentInput.focus(); 
+        return; 
+    }
+    
+    if (commentText.length < 10) { 
+        alert('Please write a more detailed comment (at least 10 characters).'); 
+        userCommentInput.focus(); 
+        return; 
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('name', appData.currentUser.name);
+        formData.append('email', appData.currentUser.email);
+        formData.append('comment', commentText);
+        
+        const response = await fetch(`${API_BASE_URL}/comments`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            
+            // Create new review object
             const newReview = {
-                id: appData.reviews.length + 1,
+                id: result.id,
                 name: appData.currentUser.name,
                 comment: commentText,
                 stars: 5,
                 date: new Date().toISOString().split('T')[0],
                 avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(appData.currentUser.name)}&background=random`
             };
+            
+            // Add to local data
             appData.reviews.unshift(newReview);
+            
+            // Update UI
             const reviewsContainer = document.getElementById('reviews-container');
             if (reviewsContainer) {
                 reviewsContainer.prepend(createReviewCard(newReview));
                 document.getElementById('reviews-count').textContent = appData.reviews.length + ' Reviews';
             }
+            
+            // Clear input
             userCommentInput.value = '';
+            
+            // Show success message
             const originalText = submitCommentBtn.innerHTML;
             submitCommentBtn.innerHTML = '<i class="fas fa-check"></i> Submitted!';
             submitCommentBtn.style.backgroundColor = '#28a745';
@@ -2790,8 +2831,14 @@ With nearly three decades of industry experience, the business has successfully 
                 submitCommentBtn.innerHTML = originalText;
                 submitCommentBtn.style.backgroundColor = '';
             }, 2000);
+        } else {
+            alert('Failed to save comment. Please try again.');
         }
-
+    } catch (error) {
+        console.error('Error submitting comment:', error);
+        alert('Connection error. Please try again.');
+    }
+}
         function createReviewCard(review) {
             const card = document.createElement('div');
             card.className = 'review-card';
@@ -2857,7 +2904,8 @@ With nearly three decades of industry experience, the business has successfully 
             formData.append('section', type);
             formData.append('file', fileInput.files[0]);
             try {
-                const resp = await fetch('/upload/project', { method:'POST', body:formData });
+                const API_URL = 'https://finalestate-1.onrender.com';
+const resp = await fetch(`${API_URL}/upload/project`, { method:'POST', body:formData });
                 if (resp.ok) {
                     await loadProjectsFromBackend();
                     showPage('dashboard');
@@ -2891,6 +2939,65 @@ With nearly three decades of industry experience, the business has successfully 
                 if (uploadSubtext) uploadSubtext.textContent = 'Click to change file';
             }
         }
+
+    async function loadCommentsFromBackend() {
+    try {
+        const API_URL = 'https://finalestate-1.onrender.com';
+        const response = await fetch(`${API_URL}/comments`);
+        if (response.ok) {
+            const comments = await response.json();
+            appData.reviews = comments.map(c => ({
+                id: c.id,
+                name: c.name,
+                comment: c.comment,
+                stars: 5,
+                date: c.created_at ? new Date(c.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(c.name)}&background=random`
+            }));
+            
+            // Update UI
+            const reviewsContainer = document.getElementById('reviews-container');
+            if (reviewsContainer) {
+                reviewsContainer.innerHTML = '';
+                appData.reviews.forEach(review => {
+                    reviewsContainer.appendChild(createReviewCard(review));
+                });
+                document.getElementById('reviews-count').textContent = appData.reviews.length + ' Reviews';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading comments:', error);
+    }
+}
+
+        async function loadCommentsFromBackend() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/comments`);
+        if (response.ok) {
+            const comments = await response.json();
+            appData.reviews = comments.map(c => ({
+                id: c.id,
+                name: c.name,
+                comment: c.comment,
+                stars: 5,
+                date: c.created_at ? new Date(c.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(c.name)}&background=random`
+            }));
+            
+            // Update UI
+            const reviewsContainer = document.getElementById('reviews-container');
+            if (reviewsContainer) {
+                reviewsContainer.innerHTML = '';
+                appData.reviews.forEach(review => {
+                    reviewsContainer.appendChild(createReviewCard(review));
+                });
+                document.getElementById('reviews-count').textContent = appData.reviews.length + ' Reviews';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading comments:', error);
+    }
+}
 
         function formatFileSize(bytes) {
             if (bytes === 0) return '0 Bytes';
@@ -2938,16 +3045,17 @@ With nearly three decades of industry experience, the business has successfully 
             document.getElementById('clients-count').textContent = totalClients > 0 ? totalClients + '+' : '0';
         }
 
-        window.addEventListener('DOMContentLoaded', async () => {
-            console.log("System initialization: Fetching data from database...");
-            try {
-                await loadProjectsFromBackend();
-                updateDashboardCounts();
-                loadDashboardContent();
-            } catch (error) {
-                console.error("Initialization failed:", error);
-            }
-        });
+  window.addEventListener('DOMContentLoaded', async () => {
+    console.log("System initialization: Fetching data from database...");
+    try {
+        await loadProjectsFromBackend();
+        await loadCommentsFromBackend(); // ADD THIS LINE
+        updateDashboardCounts();
+        loadDashboardContent();
+    } catch (error) {
+        console.error("Initialization failed:", error);
+    }
+});
     </script>
 </body>
 </html>
